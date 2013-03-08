@@ -62,7 +62,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule {
 			'summary' => __("Generates PDF files of pages. The html markup of the pdf's is customizable with ProcessWire templates.", __FILE__),
 			'version' => 100,
 			'author' => 'Wanze',
-			'href' => '',
+			'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
 			'singular' => true,
 			'autoload' => true,
 		);

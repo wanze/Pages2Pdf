@@ -1,0 +1,505 @@
+<?php
+
+/**
+* Pages2Pdf v 1.0.0
+* Module for creating pdf files from pages with TCPDF
+*
+* @author Stefan Wanzenried (Wanze)
+* @copyright Stefan Wanzenried
+* <http://www.everchanging.ch>
+*
+* ProcessWire 2.x
+* Copyright (C) 2011 by Ryan Cramer
+* Licensed under GNU/GPL v2, see LICENSE.TXT
+* <http://www.processwire.com>
+*
+* TCPDF
+* Copyright (c) 2002-2013: Nicola Asuni Tecnick.com LTD Manor Coach House, Church Hill Aldershot, Hants, GU12 4RQ UK www.tecnick.com
+* <http://www.tcpdf.org>
+* 
+*/
+
+class Pages2Pdf extends WireData implements Module, ConfigurableModule {
+	
+	/**
+	 * Holds the instance to the tcpdf class
+	 *
+	 */
+	protected $tcpdf = null;
+	
+	
+	/**
+	 * Default module configs
+	 *
+	 */
+	protected static $defaults = array(
+		'templates' => array(),
+		'pageOrientation' => 'P',
+		'pageFormat' => 'A4',
+		'documentMargins' => '30,15,20,15', //top, right, bottom, left
+		'headerMargin' => 5,
+		'footerMargin' => 10,
+		'defaultFont' => 'helvetica',
+		'defaultFontSize' => 12,
+		'printHeader' => 1,
+		'printFooter' => 1,
+		'htmlVerticalSpaces' => '',
+		'cacheTime' => 86400, //cache time in seconds of a pdf file
+	);
+			
+	
+	/**
+	 * ProcessWire module info [required]
+	 * 
+	 * @access public
+	 * @static
+	 * @return array
+	 */
+	public static function getModuleInfo() {
+
+		return array(
+			'title' => __('Pages2Pdf', __FILE__),
+			'summary' => __("Generates PDF files of pages. The html markup of the pdf's is customizable with ProcessWire templates.", __FILE__),
+			'version' => 100,
+			'author' => 'Wanze',
+			'href' => '',
+			'singular' => true,
+			'autoload' => true,
+		);
+
+	}
+
+	
+	/**
+	 * Init the module
+	 * Called by ProcessWire
+	 * 
+	 * @access public
+	 * @return void
+	 */
+	public function init() {
+		
+		//Merge default config with user config
+		$config = array_merge(self::$defaults, $this->data);
+		foreach ($config as $k => $v) $this->set($k, $v);
+
+		//We only add the hook if there's at least one template defined which should render pdfs
+		if (count($this->templates)) {
+			$this->pages->addHookAfter('save', $this, 'deletePdf');		
+		}			
+		
+	}		
+	
+	
+	/**
+	 * Install this module
+	 * Create pages2pdf folder in /site/templates/ and copy over the default pdf templates
+	 * 
+	 * @access public
+	 * @return void
+	 */
+	public function ___install() {
+
+		$templatesPath = $this->config->paths->templates . 'pages2pdf/'; 
+		
+		//If there exists already a pages2pdf folder in /site/templates, we escape
+		if (file_exists($templatesPath)) return;
+				
+		//Try to create the pages2pdf folder in /site/templates/ and copy the default templates
+		if (!wireMkdir($templatesPath)) {
+			$this->error($this->_("Could not create directory 'pages2pdf' in '/site/templates/'. Please create it manually and copy all the files from '/site/modules/Pages2Pdf/default_templates/'"));
+		} else {
+			$pathFrom = $this->config->paths->Pages2Pdf . 'default_templates/';
+			$pathTo = $templatesPath;
+			//Try to copy these template files
+			$files = array('_footer.php', '_header.php', 'default.php');
+			foreach ($files as $file) {
+				if (!copy($pathFrom . $file, $pathTo . $file)) $this->error($this->_("Failed to copy '{$file}' from /site/modules/default_templates/ to /site/templates/pages2pdf/. Please copy this file manually "));			
+			}
+			
+		}
+	
+	}
+	
+	
+	/**
+	 * Getter for the tcpdf instance
+	 * Advanced usage for pdf creation where rendering basic HTML/CSS in template isn't enough.
+	 * The user can get the tcpdf object and modify it directly, afterwards setting it again.
+	 * (In this case the pdf template probably should be left empty...)
+	 * 
+	 * @access public
+	 * @param mixed $key
+	 * @return void
+	 */
+	public function __get($key) {
+		
+		if ($key == 'tcpdf') {
+			return $this->initTcpdf();
+		}
+		return parent::__get($key);
+	
+	}
+	
+	
+	/**
+	 * Setter for the tcpdf instance
+	 * 
+	 * @access public
+	 * @param mixed $key
+	 * @param mixed $value
+	 * @return void
+	 */
+	public function __set($key, $value) {
+		
+		if ($key == 'tcpdf') $this->tcpdf = $value;
+		return parent::__set($key, $value);		
+	
+	}
+	
+	/**
+	 * Delete the pdf file of a page
+	 * Gets executed by hooking after Pages::save
+	 * 
+	 * @access public
+	 * @return void
+	 */
+	public function deletePdf($event) {
+		
+		$page = $event->arguments[0];
+		if (!in_array($page->template->name, $this->templates)) return; //Only continue if the template is allowed to render pdf's
+
+		$pdf = $this->getPdfFilePath($page);
+		if (file_exists($pdf) && is_file($pdf)) {
+			$name = $this->getPdfFileName($page);
+			if (@unlink($pdf)) {
+				$this->session->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
+			} else {
+				$this->session->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
+			}			
+		}
+	}
+	
+	
+	/**
+	 * Create a filename for the pdf
+	 * The page name is used along with some additional infos to make the filename 99% unique
+	 * Note that we could use some sort of hashing, but then the filename looks ugly
+	 * Filename : <pagename>-pdf-<pageid>.pdf 
+	 *
+	 * @access protected
+	 * @param Page $page Page object where the pdf belongs to
+	 * @return String The pdf filename
+	 */
+	protected function getPdfFileName(Page $page) {
+
+		return "{$page->name}-pdf-{$page->id}.pdf";
+
+	}
+	
+		
+	/**
+	 * Get the path to a pdf 
+	 * 
+	 * @access protected
+	 * @param Page $page Page object where the pdf belongs to
+	 * @return String The pdf filepath
+	 */
+	protected function getPdfFilePath(Page $page, $filename=true) {
+
+		$path = $this->config->paths->files . $page->id . '/';
+		if ($filename) $path .= $this->getPdfFileName($page);
+		return $path;
+
+	}
+	
+	
+	/**
+	 * Init TCPDF and set the default options from the module config
+	 * 
+	 * @access protected
+	 * @return Instance to the TCPDF object
+	 */
+	protected function initTcpdf() {
+		
+		//Did we already init Tcpdf?
+		if (!is_null($this->tcpdf)) return $this->tcpdf;
+		
+		//Not yet...
+		include_once($this->config->paths->Pages2Pdf . 'PwTCPDF.class.php');
+		$this->tcpdf = new PwTCPDF($this->pageOrientation, 'mm', $this->pageFormat);
+		
+		//Set options from module config
+		$this->tcpdf->SetFont($this->defaultFont);
+		$this->tcpdf->SetFontSize($this->defaultFontSize);
+		$margins = explode(',', $this->documentMargins);
+		$this->tcpdf->SetMargins($margins[3], $margins[0], $margins[1], true); 
+		$this->tcpdf->SetAutoPageBreak(true, $margins[2]);
+		$this->tcpdf->SetFooterMargin($this->footerMargin);
+		$this->tcpdf->SetHeaderMargin($this->headerMargin);
+		
+		//Vertical spaces for html elements
+		if ($this->htmlVerticalSpaces) {
+			$vspaces = array();
+			/*
+			Format: one html tag per line, example
+			h1:open=1.3,close=1
+			*/
+			$lines = explode("\n", $this->htmlVerticalSpaces);
+			foreach ($lines as $line) {
+				$line = trim($line);
+				$data = explode(':', $line);
+				$tag = trim($data[0]);
+				$data = trim($data[1]);
+				$data = explode(',', $data);
+				$open = explode('=', $data[0]);
+				$close = explode('=', $data[1]);
+				$h = ($open[1] == 0) ? '' : 1;
+				$openTag = array('h' => $h, 'n' => $open[1]);
+				$h = ($close[1] == 0) ? '' : 1;
+				$closeTag = array('h' => $h, 'n' => $close[1]);
+				$vspaces[$tag] = array($openTag, $closeTag);
+			}
+			$this->tcpdf->setHtmlVSpace($vspaces);
+		}
+		
+		//Print header/footer?			
+		$templatesPath = $this->config->paths->templates . 'pages2pdf/';
+		if ($this->printHeader) {
+			$headerFile = $templatesPath . '_header.php';
+			$header = new TemplateFile($headerFile);
+			$this->tcpdf->setPwHeader($header->render());
+		} else {
+			$this->tcpdf->setPrintHeader(false);			
+		}
+		
+		if ($this->printFooter) {
+			$footerFile = $templatesPath . '_footer.php';
+			$footer = new TemplateFile($footerFile);
+			$this->tcpdf->setPwFooter($footer->render());			
+		} else {
+			$this->tcpdf->setPrintFooter(false);			
+		}
+		
+		//Add a page
+		$this->tcpdf->AddPage();
+		
+		return $this->tcpdf;
+
+	}
+	
+	
+	/**
+	 * Redirect to a pdf or create it first with TCPDF
+	 * 
+	 * @access protected
+	 * @return void
+	 */
+	protected function getPdf() {
+		
+		$create = true;
+		$pdfPath = $this->getPdfFilePath($this->page, false);
+		$pdf = $this->getPdfFilePath($this->page);
+
+		//Does the pdf already exist? We check if the cache time is expired
+		if (file_exists($pdf) && is_file($pdf)) {
+			$create = false;
+			$lastModified = filemtime($pdf);
+			if ((time() - $lastModified) > $this->cacheTime) $create = true;
+		}
+		
+		//Always create when debug is on
+		if ($this->config->debug) $create = true; 
+		
+		$pdfUrl = $this->config->urls->files . $this->page->id . '/' . $this->getPdfFileName($this->page);
+				
+		if (!$create) {
+			$this->session->redirect($pdfUrl);
+		} else {
+			//We need to make sure that /site/assets/files/page_id/ folder exists
+			if (!file_exists($pdfPath)) {
+				if (!wireMkdir($pdfPath)) throw new WireException("Pages2Pdf: Could not create directory '{$pdfPath}'");
+			}
+
+			//Create and save the pdf
+			$this->initTcpdf();
+			$templatesPath = $this->config->paths->templates . 'pages2pdf/';
+			$templateFile = $templatesPath . $this->page->template . '.php';
+			
+			//If no pdf-template file exists, we pick the default.php template
+			$templateFile = (file_exists($templateFile) && is_file($templateFile)) ? $templateFile : $templatesPath . 'default.php';
+			$template = new TemplateFile($templateFile);
+			$html = $template->render();
+			if ($html) $this->tcpdf->writeHTML($html);
+						
+			//Save and redirect
+			$this->tcpdf->Output($pdf, 'F');
+			$this->session->redirect($pdfUrl);
+		}
+		
+	}			
+
+
+	/**
+	 * Render a link to the pdf or redirect to the file
+	 * If the pdf file does not exist yet, it will be created first
+	 * This method is called from the template with $modules->get('Pages2Pdf')->render()
+	 *
+	 * @access public
+	 * @Array options Custom markup Options
+	 * @return void|html markup
+	 */
+	public function render($options=array()) {
+		
+		//Security-check: We only continue here if the pages template is allowed to create pdfs
+		if (!in_array($this->page->template->name, $this->templates)) {
+			if ($this->config->debug) return "Pages2Pdf: Template '{$this->page->template}' of this page is not defined in the module config";
+			return;	
+		} 
+		
+		//Request to redirect to the pdf?
+		if ($this->input->get('pdf') && $this->input->get('pdf') == 1) {
+			$this->getPdf();
+		} else {
+			//Only output a link to the pdf
+			$_options = array(
+				'title' => 'Print PDF',
+				'markup' => '<a href="{url}" target="_blank">{title}</a>',
+			);
+			$options = array_merge($_options, $options);			
+			$out = $options['markup'];
+			$out = str_replace('{url}', $this->page->url . '?pdf=1', $out);
+			$out = str_replace('{title}', $options['title'], $out);
+			return $out;
+		}		
+		
+	}
+	
+
+	/**
+	 * Return the config options
+	 * 
+	 * @access public
+	 * @static
+	 * @param array $data
+	 * @return void
+	 */
+	public static function getModuleConfigInputfields(array $data) {
+		
+		$data = array_merge(self::$defaults, $data);
+		$modules = wire('modules');
+		$fields = new InputfieldWrapper();
+		
+		//Templates which can create PDF files
+		$field = $modules->get('InputfieldAsmSelect');
+		$field->label = 'Enabled templates';
+		$field->description = 'Select the templates which can create PDF files';
+		$field->attr('name', 'templates');
+		$templates = array();
+		foreach (wire('templates') as $template) {
+			if($template->flags & Template::flagSystem) continue; //Exclude system templates
+			$label = $template->label ? $template->label : $template->name;
+			$templates[$template->name] = $label;
+		}
+		$field->addOptions($templates);
+		$field->attr('value', $data['templates']);
+		$fields->append($field);
+		
+		//Page orientation
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Page orientation';
+		$field->description = 'P=Portrait, L=Landscape';
+		$field->attr('name', 'pageOrientation');
+		$value = $data['pageOrientation'];
+		if ($value != 'P' || $value != 'L') $value = 'P';
+		$field->attr('value', $value);
+		$fields->append($field);
+		
+		//Page format
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Page format';
+		$field->attr('name', 'pageFormat');
+		$field->attr('value', $data['pageFormat']);
+		$fields->append($field);
+		
+		//Margins
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Document margins';
+		$field->description = 'Set margins for the pdf document (mm). Order: Top, Right, Bottom, Left';
+		$field->attr('name', 'documentMargins');		
+		$field->attr('value', $data['documentMargins']);
+		$fields->append($field);
+
+		//Header margin
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Header margin';
+		$field->description = 'Margin from top (mm)';
+		$field->attr('name', 'headerMargin');		
+		$field->attr('value', $data['headerMargin']);
+		$fields->append($field);
+
+		//Footer margin
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Footer margin';
+		$field->description = 'Margin from bottom (mm)';
+		$field->attr('name', 'footerMargin');		
+		$field->attr('value', $data['footerMargin']);
+		$fields->append($field);
+		
+		//Default Font
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Default font';
+		$field->description = 'Default font used in the pdfs. There are 3 fonts included with Pages2Pdf: Helvetica, Courier, Times';
+		$field->notes = 'If you need another font, download tcpdf from tcpdf.org and add your fonts to the /site/modules/Pages2Pdf/tcpdf/fonts folder'
+		 			    . "\nIt's also possible to switch fonts with css inside the pdf templates";
+		$field->attr('value', $data['defaultFont']);
+		$field->attr('name', 'defaultFont');
+		$fields->append($field);
+
+		//Default Font Size
+		$field = $modules->get('InputfieldText');
+		$field->label = 'Default font size';
+		$field->description = 'Default font size used in the pdfs (pt)';
+		$field->notes = "It's possible to change the font size with css inside the pdf templates";
+		$field->attr('value', $data['defaultFontSize']);
+		$field->attr('name', 'defaultFontSize');		
+		$fields->append($field);
+		
+		//Header
+		$field = $modules->get('InputfieldCheckbox');
+		$field->label = 'Print header';
+		$field->description = 'Print header in pdf files? Markup defined in /site/templates/pages2pdf/_header.php';
+		if ($data['printHeader']) $field->attr('checked', 'checked');
+		$field->attr('name', 'printHeader');		
+		$fields->append($field);
+
+		//Footer
+		$field = $modules->get('InputfieldCheckbox');
+		$field->label = 'Print footer';
+		$field->description = 'Print footer in pdf files? Markup defined in /site/templates/pages2pdf/_footer.php';
+		if ($data['printFooter']) $field->attr('checked', 'checked');
+		$field->attr('name', 'printFooter');
+		$fields->append($field);
+				
+		//Cache Time
+		$field = $modules->get('InputfieldInteger');
+		$field->label = 'Cache time';
+		$field->description = "Enter the time in seconds how long a pdf is cached before it gets recreated";
+		$field->attr('value', $data['cacheTime']);
+		$field->attr('name', 'cacheTime');
+		$fields->append($field);
+
+		//Html vertical space
+		$field = $modules->get('InputfieldTextarea');
+		$field->collapsed = Inputfield::collapsedBlank;
+		$field->label = 'Html vertical spaces (advanced)';
+		$field->description = 'Set the vertical spaces for html tags. You must use the following structure (one tag per line): <html-tag>:open=<height>,close=<height>';
+		$field->notes = "Example:\np:open=2,close=10\nThis means (as far as I understand): Add 2 mm space after the opening p-tag and 10mm after the closing p-tag\nPlease note that not all tags are supported and the behaviour seems different from tag to tag";
+		$field->attr('value', $data['htmlVerticalSpaces']);
+		$field->attr('name', 'htmlVerticalSpaces');
+		$fields->append($field);
+
+		return $fields;
+		
+	}
+}

@@ -1,22 +1,21 @@
 <?php
 /*
  * Pages2Pdf default template
- * This template is used if you have enabled creating pdfs for a template 
- * but didn't create a template file in '/site/templates/pages2pdf/ folder.
  *
+ * This template is used if you have enabled creating PDF files for a template in the module config
+ * but didn't create a corresponding template file in '/site/templates/pages2pdf/ folder.
+ *
+ * Styles defined in styles.css file
  */
 ?>
 
 <h1><?= $page->get('headline|title') ?></h1>
 <p><?= $page->body ?></p>
 
-<?php
-//Does the page have some images? Print them. 
-//If you have lots of images then wrapping them in a table is the better solution than separating with &nbsp;
-if (count($page->images)) {
-	foreach ($page->images as $image) {
-		$thumb = $image->size(180, 120);
-		echo "<img src=\"{$thumb->url}\" width=\"{$thumb->width}\" height=\"{$thumb->height}\" />&nbsp;";
-	}
-}
-?>
+<?php if (count($page->images)): ?>
+    <?php foreach ($page->images as $image): ?>
+        <div class="image">
+        <img src="<?= $image->size(400, 400)->url ?>" alt="<?= $image->description ?>" />
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>

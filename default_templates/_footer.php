@@ -1,11 +1,13 @@
 <?php
 /*
- * Pages2Pdf default footer
- * You can use {page} for the actual page number and {pagesTotal} for the total of pages
+ * Pages2Pdf default footer markup
+ * Styles defined in styles.css file
+ *
+ * You can use {PAGENO} for the current page number and {nbpg} for the total of pages
  *
  */
 ?>
 
 <!-- output -->
 <hr>
-<span style="text-align: center; font-size: 9pt;">Pages2Pdf Default Footer / Created on <?= date('Y-m-d') ?> / Page {page} of {totalPages}</span>
+<div class="footer">Pages2Pdf Default Footer / Created on <?= date('Y-m-d') ?> / Page {PAGENO} of {nbpg}</div>

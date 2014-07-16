@@ -1,0 +1,17 @@
+.head {
+    font-size: 16pt;
+    font-weight: bold;
+    font-family: Times;
+}
+
+.footer {
+    text-align: center;
+    font-size: 9pt;
+    font-family: Helvetica;
+}
+
+.image {
+    float: left;
+    width: 260px;
+    border-right: 10px solid #ffffff;
+}

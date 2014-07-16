@@ -5,16 +5,14 @@
  * Module helping creating PDF files from ProcessWire pages.
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
+ * @version 1.1.0
  *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  * <http://www.processwire.com>
  *
- * @version 1.1.0
- *
  */
-
 class Pages2Pdf extends WireData implements Module, ConfigurableModule
 {
 
@@ -57,69 +55,71 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     public static function getModuleInfo()
     {
-		return array(
-			'title' => 'Pages2Pdf',
-			'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-			'version' => 110,
-			'author' => 'Stefan Wanzenried (Wanze)',
-			'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
-			'singular' => true,
-			'autoload' => true,
+        return array(
+            'title' => 'Pages2Pdf',
+            'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
+            'version' => 110,
+            'author' => 'Stefan Wanzenried (Wanze)',
+            'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
+            'singular' => true,
+            'autoload' => true,
             'requires' => array('WirePDF'),
-		);
-	}
+        );
+    }
 
 
-    public function init() {}
+    public function init()
+    {
+    }
 
 
-	/**
-	 * Called when ProcessWire API is ready
+    /**
+     * Called when ProcessWire API is ready
      * Check if there is a request to download (and possibly create) a PDF file:
      *   If the GET variable is 1, download a PDF of the current page (this was used in previous versions)
      *   If the GET variable contains another page ID (integer), try to download the PDF from the this page
      *
      * If there is no request to download a PDF file, attach a hook to delete cached files when saving pages
      *
-	 */
-	public function ready()
+     */
+    public function ready()
     {
         $get_var = $this->get('getVar');
         if ($page_id = $this->wire('input')->get($get_var)) {
-            $page = ($page_id == 1) ? $this->wire('page') : $this->wire('pages')->get((int) $page_id);
+            $page = ($page_id == 1) ? $this->wire('page') : $this->wire('pages')->get((int)$page_id);
             if ($page->id && in_array($page->template->name, $this->get('templates'))) {
                 $this->download($page);
             }
         }
         $this->pages->addHookAfter('save', $this, 'hookDeletePDF');
-	}
+    }
 
 
-	/**
-	 * Install this module
-	 * Create pages2pdf folder in /site/templates/ and copy over the default pdf templates
+    /**
+     * Install this module
+     * Create pages2pdf folder in /site/templates/ and copy over the default pdf templates
      *
-	 */
-	public function ___install()
+     */
+    public function ___install()
     {
-		$folder = self::FOLDER_NAME;
+        $folder = self::FOLDER_NAME;
         $templates_path = $this->wire('config')->paths->templates . $folder;
-		if (file_exists($templates_path)) {
+        if (file_exists($templates_path)) {
             return;
         }
-		if (!wireMkdir($templates_path)) {
-			$this->error($this->_("Could not create directory '$folder' in '/site/templates/'. Please create it manually and copy all the files from '/site/modules/Pages2Pdf/default_templates/'"));
-		} else {
-			$path_from = $this->wire('config')->paths->Pages2Pdf . 'default_templates/';
-			$path_to = $templates_path;
-			$files = array('_footer.php', '_header.php', 'default.php');
-			foreach ($files as $file) {
-				if (!copy($path_from . $file, $path_to . $file)) {
+        if (!wireMkdir($templates_path)) {
+            $this->error($this->_("Could not create directory '$folder' in '/site/templates/'. Please create it manually and copy all the files from '/site/modules/Pages2Pdf/default_templates/'"));
+        } else {
+            $path_from = $this->wire('config')->paths->Pages2Pdf . 'default_templates/';
+            $path_to = $templates_path;
+            $files = array('_footer.php', '_header.php', 'default.php');
+            foreach ($files as $file) {
+                if (!copy($path_from . $file, $path_to . $file)) {
                     $this->error($this->_("Failed to copy '$file' from /site/modules/default_templates/ to /site/templates/$folder. Please copy this file manually "));
                 }
-			}
-		}
-	}
+            }
+        }
+    }
 
 
     /**
@@ -162,28 +162,28 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     public function hookDeletePDF(HookEvent $event)
     {
-		$page = $event->arguments[0];
-		$pdf = $this->getPdfFilePath($page);
-		if (is_file($pdf)) {
-			$name = $this->getPdfFileName($page);
-			if (unlink($pdf)) {
-				$this->session->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
-			} else {
-				$this->session->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
-			}
-		}
-	}
+        $page = $event->arguments[0];
+        $pdf = $this->getPdfFilePath($page);
+        if (is_file($pdf)) {
+            $name = $this->getPdfFileName($page);
+            if (unlink($pdf)) {
+                $this->session->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
+            } else {
+                $this->session->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
+            }
+        }
+    }
 
 
-	/**
-	 * Render a link to download the PDF.
+    /**
+     * Render a link to download the PDF.
      * Note that this method is not really necessary as downloading/creating PDFs is handled now in the ready() method.
      * Instead of calling this method, one could create the link manually
      *
      * @param array $options Array
      * @return string
-	 */
-    public function render(array $options=array())
+     */
+    public function render(array $options = array())
     {
         $_options = array(
             'title' => $this->_('Print PDF'),
@@ -191,16 +191,16 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
             'page_id' => '',
         );
         $options = array_merge($_options, $options);
-        $page = ($options['page_id']) ? $this->wire('pages')->get((int) $options['page_id']) : $this->wire('page');
-		if (!in_array($page->template->name, $this->get('templates'))) {
+        $page = ($options['page_id']) ? $this->wire('pages')->get((int)$options['page_id']) : $this->wire('page');
+        if (!in_array($page->template->name, $this->get('templates'))) {
             return ($this->wire('config')->debug) ? $this->_('Pages2Pdf: Template of requested page is not allowed to generate PDFs') : '';
-		}
+        }
         $out = $options['markup'];
         $get_var = $this->get('getVar');
         $out = str_replace('{url}', $this->wire('page')->url . "?{$get_var}={$page->id}", $out);
         $out = str_replace('{title}', $options['title'], $out);
         return $out;
-	}
+    }
 
 
     /**
@@ -283,7 +283,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $field->value = $data['templates'];
         $templates = array();
         foreach (wire('templates') as $template) {
-            if($template->flags & Template::flagSystem) continue; //Exclude system templates
+            if ($template->flags & Template::flagSystem) continue; //Exclude system templates
             $templates[$template->name] = $template->name;
         }
         $field->addOptions($templates);

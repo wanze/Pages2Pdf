@@ -8,13 +8,11 @@ require_once(dirname(__FILE__) . '/mpdf/mpdf.php');
  * @see http://www.mpdf1.com/mpdf/index.php
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
+ * @version 1.0
  *
  */
-
 class WirePDF extends WireData implements Module, ConfigurableModule
 {
-
-    const CACHE_FOLDER = 'WirePDF_cache';
 
     /**
      * @var mPDF
@@ -71,7 +69,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     }
 
 
-    public function init() {}
+    public function init()
+    {
+    }
 
 
     /**
@@ -118,7 +118,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      * @param string $mode 'D': Send file to browser and force download
      *                     'I': Send file inline to browser
      */
-    public function download($filename, $mode='I')
+    public function download($filename, $mode = 'I')
     {
         $this->initPDF();
         $this->pdf->Output($filename, $mode);
@@ -151,10 +151,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     protected function ___initPDF()
     {
         if ($this->pdf === null || $this->changedConstructorArgs()) {
-            $format = ($this->get('pageOrientation') == 'L') ? $this->get('pageFormat') . '-L' : $this->get('pageFormat');
             $this->pdf = new mPDF(
                 $this->get('mode'),
-                $format,
+                ($this->get('pageOrientation') == 'L') ? $this->get('pageFormat') . '-L' : $this->get('pageFormat'),
                 $this->get('fontSize'),
                 $this->get('font'),
                 $this->get('leftMargin'),
@@ -169,7 +168,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         }
         $this->pdf->SetAuthor($this->get('author'));
         if ($markup = $this->getMarkup('markupHeader')) {
-            $this->pdf->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
+            $this->pdf->SetHTMLHeader($markup, '', (bool)$this->get('headerFirstPage'));
         }
         if ($markup = $this->getMarkup('markupFooter')) {
             $this->pdf->SetHTMLFooter($markup);
@@ -224,7 +223,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      * @return string
      * @throws WireException
      */
-    protected function getMarkup($section='markupMain')
+    protected function getMarkup($section = 'markupMain')
     {
         $markup = $this->get($section);
         if ($markup instanceof TemplateFile) {
@@ -265,7 +264,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         $field = $modules->get('InputfieldText');
         $field->label = __('Page format');
         $field->name = 'pageFormat';
-        $field->value =  $data['pageFormat'];
+        $field->value = $data['pageFormat'];
         $fields->append($field);
 
         $margins = array(

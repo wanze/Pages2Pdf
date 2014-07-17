@@ -34,7 +34,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     protected static $config = array(
         'templates' => array(),
-        'getVar' => 'pdf',
+        'getVar' => 'pages2pdf',
         'filename' => '{page.name}-pdf-{page.id}.pdf',
         'printHeader' => 1,
         'printFooter' => 1,
@@ -305,10 +305,27 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
 
         $field = $modules->get('InputfieldInteger');
         $field->label = __('Cache time');
-        $field->description = __("Enter a time in seconds how long a PDF file is cached before it is recreated by the module");
+        $field->description = __('Enter a time in seconds how long a PDF file is cached before it is recreated by the module');
         $field->notes = __('If debug mode is on, caching is bypassed to serve fresh PDF files');
         $field->value = $data['cacheTime'];
         $field->name = 'cacheTime';
+        $fields->append($field);
+
+        $field = $modules->get('InputfieldText');
+        $field->label = __('PDF filename');
+        $field->description = __('Generated name of PDF files. Available Placeholders are {page.name} and {page.id}');
+        $field->value = $data['filename'];
+        $field->name = 'filename';
+        $field->pattern = '^([a-zA-Z0-9_-]|\{page\.id\}|\{page\.name\})+\.pdf$';
+        $field->required = 1;
+        $fields->append($field);
+
+        $field = $modules->get('InputfieldText');
+        $field->label = __('GET variable');
+        $field->description = __('GET variable used when requesting a PDF file of a page');
+        $field->value = $data['getVar'];
+        $field->name = 'getVar';
+        $field->required = 1;
         $fields->append($field);
 
         return $fields;

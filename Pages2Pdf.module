@@ -112,7 +112,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         } else {
             $path_from = $this->wire('config')->paths->Pages2Pdf . 'default_templates/';
             $path_to = $templates_path;
-            $files = array('_footer.php', '_header.php', 'default.php');
+            $files = array('_footer.php', '_header.php', 'default.php', 'styles.css');
             foreach ($files as $file) {
                 if (!copy($path_from . $file, $path_to . $file)) {
                     $this->error($this->_("Failed to copy '$file' from /site/modules/default_templates/ to /site/templates/$folder. Please copy this file manually "));

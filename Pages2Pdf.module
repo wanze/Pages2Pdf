@@ -115,7 +115,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
             $files = array('_footer.php', '_header.php', 'default.php', 'styles.css');
             foreach ($files as $file) {
                 if (!copy($path_from . $file, $path_to . $file)) {
-                    $this->error($this->_("Failed to copy '$file' from /site/modules/default_templates/ to /site/templates/$folder. Please copy this file manually "));
+                    $this->error($this->_("Failed to copy '$file' from '$path_from' to '$path_to'. Please copy this file manually."));
                 }
             }
         }
@@ -167,9 +167,9 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         if (is_file($pdf)) {
             $name = $this->getPdfFileName($page);
             if (unlink($pdf)) {
-                $this->session->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
+                $this->wire('session')->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
             } else {
-                $this->session->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
+                $this->wire('session')->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
             }
         }
     }
@@ -187,7 +187,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
     {
         $_options = array(
             'title' => $this->_('Print PDF'),
-            'markup' => '<a href="{url}" target="_blank">{title}</a>',
+            'markup' => '<a href="{url}">{title}</a>',
             'page_id' => '',
         );
         $options = array_merge($_options, $options);

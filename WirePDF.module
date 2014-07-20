@@ -42,6 +42,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         'author' => '',
         'headerFirstPage' => 1,
         'cssFile' => '',
+        'css' => '',
     );
 
 
@@ -173,9 +174,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         if ($markup = $this->getMarkup('markupFooter')) {
             $this->pdf->SetHTMLFooter($markup);
         }
-        if (is_file($this->get('cssFile'))) {
-            $styles = file_get_contents($this->get('cssFile'));
-            $this->pdf->WriteHTML($styles, 1);
+        $css = (is_file($this->get('cssFile'))) ? file_get_contents($this->get('cssFile')) : $this->get('css');
+        if ($css) {
+            $this->pdf->WriteHTML($css, 1);
             $this->pdf->WriteHTML($this->getMarkup(), 2);
         } else {
             $this->pdf->writeHTML($this->getMarkup());
@@ -321,7 +322,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
 
         $field = $modules->get('InputfieldInteger');
         $field->label = __('Default font size');
-        $field->description = __('Default font size used in PDF files (pt). Can be overriden with CSS');
+        $field->description = __('Default font size used in PDF files (pt). Can be overridden with CSS');
         $field->value = $data['fontSize'];
         $field->name = 'fontSize';
         $fields->append($field);

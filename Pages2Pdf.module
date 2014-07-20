@@ -5,7 +5,7 @@
  * Module helping creating PDF files from ProcessWire pages.
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
- * @version 1.1.0
+ * @version 1.1.1
  *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
@@ -21,6 +21,13 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      *
      */
     const FOLDER_NAME = 'pages2pdf/';
+
+    /**
+     * Generating cache PDF files either on click (when requesting a download) or when saving a page in the admin
+     *
+     */
+    const CREATION_MODE_CLICK = 1;
+    const CREATION_MODE_SAVE = 2;
 
     /**
      * @var WirePDF
@@ -39,6 +46,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         'printHeader' => 1,
         'printFooter' => 1,
         'cacheTime' => 86400,
+        'creationMode' => self::CREATION_MODE_CLICK,
     );
 
 
@@ -58,7 +66,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 110,
+            'version' => 111,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,
@@ -79,7 +87,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      *   If the GET variable is 1, download a PDF of the current page (this was used in previous versions)
      *   If the GET variable contains another page ID (integer), try to download the PDF from the this page
      *
-     * If there is no request to download a PDF file, attach a hook to delete cached files when saving pages
+     * If there is no request to download a PDF file, do nothing and just attach hooks
      *
      */
     public function ready()
@@ -92,6 +100,9 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
             }
         }
         $this->pages->addHookAfter('save', $this, 'hookDeletePDF');
+        if ($this->get('creationMode') == self::CREATION_MODE_SAVE) {
+            $this->pages->addHookAfter('save', $this, 'hookSavePDF');
+        }
     }
 
 
@@ -167,10 +178,26 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         if (is_file($pdf)) {
             $name = $this->getPdfFileName($page);
             if (unlink($pdf)) {
-                $this->wire('session')->message($this->_(sprintf("Pages2Pdf: Deleted PDF '%s'", $name)));
+                $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Deleted PDF file '%s'"), $name));
             } else {
-                $this->wire('session')->error($this->_(sprintf("Pages2Pdf: Failed to delete PDF '%s'", $name)));
+                $this->wire('session')->error(sprintf($this->_("Pages2Pdf: Failed to delete PDF file '%s'"), $name));
             }
+        }
+    }
+
+
+    /**
+     * Store a PDF file of a page
+     *
+     * @param HookEvent $event
+     */
+    public function hookSavePDF(HookEvent $event)
+    {
+        $page = $event->arguments[0];
+        if (in_array($page->template->name, $this->get('templates'))) {
+            $this->create($page, true);
+            $name = $this->getPDFFilename($page);
+            $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Created PDF file '%s'"), $name));
         }
     }
 
@@ -252,24 +279,23 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      * Download PDF from given page, create PDF if not yet existing
      *
      * @param Page $page
+     * @param bool $force True to bypass cached file and create a fresh PDF file before downloading
      */
-    public function download(Page $page)
+    public function download(Page $page, $force=false)
     {
-        if (!$this->isCached($page)) {
+        if ($force || !$this->isCached($page)) {
             $this->getPDF();
             $this->createPDF($page);
         }
-        wireSendFile($this->getPDFFilePath($page));
+        wireSendFile($this->getPDFFilePath($page), array('forceDownload' => true));
     }
 
 
     /**
-     * Create PDF file without requesting to download the file afterwards.
-     * This method is not called internal, it's here for the developer to create and store a PDF file by
-     * himself rather than 'on click'.
+     * Create PDF file and store it without requesting to download the file afterwards
      *
      * @param Page $page
-     * @param bool $force True to bypass cached files
+     * @param bool $force True to bypass cache and create a fresh PDF file
      */
     public function create(Page $page, $force=false)
     {
@@ -334,6 +360,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $field->value = $data['filename'];
         $field->name = 'filename';
         $field->pattern = '^([a-zA-Z0-9_-]|\{page\.id\}|\{page\.name\})+\.pdf$';
+        $field->notes = sprintf(__('Available characters: %s'), 'a-zA-Z0-9_-');
         $field->required = 1;
         $fields->append($field);
 
@@ -343,6 +370,18 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $field->value = $data['getVar'];
         $field->name = 'getVar';
         $field->required = 1;
+        $fields->append($field);
+
+        $field = $modules->get('InputfieldRadios');
+        $field->label = __('Creation mode');
+        $field->description = __('Should PDF files be generated and cached on click (when requesting a download) or when saving pages in the admin');
+        $field->name = 'creationMode';
+        $field->value = $data['creationMode'];
+        $modes = array(
+            self::CREATION_MODE_CLICK => __('On click, when requesting a download of a PDF file'),
+            self::CREATION_MODE_SAVE => __('After saving pages in the admin'),
+        );
+        $field->addOptions($modes);
         $fields->append($field);
 
         return $fields;
@@ -398,7 +437,11 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         if (is_file($templates_path . 'styles.css')) {
             $this->pdf->set('cssFile', $templates_path . 'styles.css');
         }
+        // Temporary set the wire page context to the given page, because $page can be different than wire('page')
+        $_page = $this->wire('page');
+        $this->wire('page', $page);
         $this->pdf->save($this->getPDFFilePath($page));
+        $this->wire('page', $_page);
     }
 
 

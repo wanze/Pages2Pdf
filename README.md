@@ -17,6 +17,7 @@ After installing the module, the following config options are available:
 * **Cache time** Time in seconds how long the created PDF files are cached before they are created again
 * **PDF filename** Filename of the PDF files. Use placeholders *{page.name}* and *{page.id}* as placeholders for the page's name and ID.
 * **GET variable** Name of the GET variable used when requesting a PDF file
+* **Creation mode** Should PDF files be generated and cached on click (when requesting a download) or when saving pages in the admin
 
 More configuration options are available in the module *WirePDF*.
 
@@ -50,8 +51,10 @@ echo '<a href="' . $page->url . '?pages2pdf=1">Download PDF</a>';
 echo '<a href="' . $page->url . '?pages2pdf=' . $pages->get('/my/page/')->id . '">Download PDF</a>';
 ```
 
+Depending on the chosen creation mode, the PDF file is stored for caching before downloading or after saving a page. When the user requests a download of a PDF, the file is only re-created if the cache is expired or if debug mode is on.
+
 #WirePDF
-This module is a wrapper around the mPDF library. It is used by the Pages2Pdf module to create and store the PDF files, but can also be used independendly to create/store/download PDF files.
+This module is a wrapper around the mPDF library. It is used by the Pages2Pdf module to create and store the PDF files, but can also be used independently to create/store/download PDF files.
 
 ## Configuration
 The most important configuration options for mPDF are available in the module configs:

@@ -264,6 +264,23 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
 
 
     /**
+     * Create PDF file without requesting to download the file afterwards.
+     * This method is not called internal, it's here for the developer to create and store a PDF file by
+     * himself rather than 'on click'.
+     *
+     * @param Page $page
+     * @param bool $force True to bypass cached files
+     */
+    public function create(Page $page, $force=false)
+    {
+        if ($force || !$this->isCached($page)) {
+            $this->getPDF();
+            $this->createPDF($page);
+        }
+    }
+
+
+    /**
      * Get module config
      *
      * @param array $data
@@ -359,6 +376,9 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     protected function ___createPDF(Page $page)
     {
+        if (!in_array($page->template->name, $this->get('templates'))) {
+            throw new WireException("Pages2Pdf: Not allowed to create PDF file for template '{$page->template->name}'");
+        }
         $path = $page->filesManager()->path();
         if (!is_dir($path)) {
             if (!wireMkdir($path)) {

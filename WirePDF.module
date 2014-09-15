@@ -63,7 +63,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'WirePDF',
             'summary' => __('Wrapper class around the library mPDF to create PDF files, optimized for ProcessWire'),
-            'version' => 100,
+            'version' => 101,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
         );
@@ -151,10 +151,10 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      */
     protected function ___initPDF()
     {
-        if ($this->pdf === null || $this->changedConstructorArgs()) {
+        if (is_null($this->pdf) || $this->changedConstructorArgs()) {
             $this->pdf = new mPDF(
                 $this->get('mode'),
-                ($this->get('pageOrientation') == 'L') ? $this->get('pageFormat') . '-L' : $this->get('pageFormat'),
+                $this->get('pageFormat'),
                 $this->get('fontSize'),
                 $this->get('font'),
                 $this->get('leftMargin'),
@@ -165,7 +165,8 @@ class WirePDF extends WireData implements Module, ConfigurableModule
                 $this->get('footerMargin'),
                 $this->get('pageOrientation')
             );
-            $this->pdf->AddPage();
+            // Need to pass orientation again, constructor of mPDF does reset landscape to portrait -.-
+            $this->pdf->AddPage($this->get('pageOrientation'));
         }
         $this->pdf->SetAuthor($this->get('author'));
         if ($markup = $this->getMarkup('markupHeader')) {

@@ -106,11 +106,11 @@ $pdf->markupMain = $template->render();
 For advanced usage, you can also get the mPDF instance from the module:
 
 ```php
-$pdf = $pdf = $modules->get('WirePDF');
+$pdf = $modules->get('WirePDF');
 
 // Get mPDF instance
 $mpdf = $pdf->mpdf;
 
-// Set back mPDF
+// Set back mPDF instance
 $pdf->mpdf = $mpdf;
 ```

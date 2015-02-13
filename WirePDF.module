@@ -1,5 +1,4 @@
 <?php
-require_once(dirname(__FILE__) . '/mpdf/mpdf.php');
 
 /**
  * Module WirePDF
@@ -73,6 +72,10 @@ class WirePDF extends WireData implements Module, ConfigurableModule
 
     public function init()
     {
+        // Set the cache path of mPDF to /site/assets/cache
+        define('_MPDF_TEMP_PATH', $this->wire('config')->paths->cache . 'WirePDF/');
+        define('_MPDF_TTFONTDATAPATH', $this->wire('config')->paths->cache . 'WirePDF/');
+        require_once(dirname(__FILE__) . '/mpdf/mpdf.php');
     }
 
 

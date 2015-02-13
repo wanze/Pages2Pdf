@@ -18,8 +18,9 @@ After installing the module, the following config options are available:
 * **PDF filename** Filename of the PDF files. Use placeholders *{page.name}* and *{page.id}* as placeholders for the page's name and ID.
 * **GET variable** Name of the GET variable used when requesting a PDF file
 * **Creation mode** Should PDF files be generated and cached on click (when requesting a download) or when saving pages in the admin
+* **Multilanguage support** If enabled, the PDF files are generated for each language. If a user downloads a PDF file, the PDF matching the user's language is served.
 
-More configuration options are available in the module *WirePDF*.
+More configuration options related to the layout of the PDF are available in the module *WirePDF*.
 
 ##Using the module
 The goal of this module is to support you creating/downloading PDF files for certain templates. After the installation, you should find a new folder "pages2pdf" in your "/site/templates/" directory. This folder contains the (ProcessWire) templates where you define the markup of the PDF files:
@@ -31,7 +32,7 @@ The goal of this module is to support you creating/downloading PDF files for cer
 
 Let's say you want to offer downloading a PDF file for all pages with the template "skyscraper". First of all, you need to enable the template in the module's config options. Then, create a corresponding template file `skyscraper.php` in the  "/site/templates/pages2pdf/" directory and define the markup of the skyscraper PDF. You have the full ProcessWire API available. Note that HTML/CSS support is limited, you may want to check out what [HTML tags](http://mpdf1.com/manual/index.php?tid=256) / [CSS styles](http://mpdf1.com/manual/index.php?tid=34) are supported by mPDF.
 
-Now what's left is to output a link in the skyscraper template where the user can click and download the PDF file:
+Finally, output a link in the skyscraper template where the user can click and download the PDF file:
 ```php
 echo $modules->get('Pages2Pdf')->render();
 ```
@@ -44,14 +45,14 @@ $options = array(
 );
 echo $modules->get('Pages2Pdf')->render($options);
 ```
-Since v.1.1.0 calling the render() method is no longer required. You can also write the link to requesting/downloading a PDF file by yourself:
+Since v.1.1.0 calling the render() method is no longer required. You can also write the link to download a PDF file by yourself:
 ```php
 echo '<a href="' . $page->url . '?pages2pdf=1">Download PDF</a>';
 // Or to download a PDF file from another page
 echo '<a href="' . $page->url . '?pages2pdf=' . $pages->get('/my/page/')->id . '">Download PDF</a>';
 ```
 
-Depending on the chosen creation mode, the PDF file is stored for caching before downloading or after saving a page. When the user requests a download of a PDF, the file is only re-created if the cache is expired or if debug mode is on.
+Depending on the chosen creation mode in the module configuration, the PDF file is cached before downloading or after saving a page. When the user requests a download of a PDF, the file is only re-created if the cache is expired or if debug mode is on.
 
 #WirePDF
 This module is a wrapper around the mPDF library. It is used by the Pages2Pdf module to create and store the PDF files, but can also be used independently to create/store/download PDF files.

@@ -5,7 +5,8 @@
  * Module helping creating PDF files from ProcessWire pages.
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
- * @version 1.1.1
+ * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
+ * @version 1.1.2
  *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
@@ -18,13 +19,11 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
 
     /**
      * Folder name where PDF templates are stored inside /site/templates/
-     *
      */
     const FOLDER_NAME = 'pages2pdf/';
 
     /**
      * Generating cache PDF files either on click (when requesting a download) or when saving a page in the admin
-     *
      */
     const CREATION_MODE_CLICK = 1;
     const CREATION_MODE_SAVE = 2;
@@ -47,6 +46,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         'printFooter' => 1,
         'cacheTime' => 86400,
         'creationMode' => self::CREATION_MODE_CLICK,
+        'multilanguageSupport' => false,
     );
 
 
@@ -66,7 +66,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 111,
+            'version' => 112,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,
@@ -94,7 +94,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
     {
         $get_var = $this->get('getVar');
         if ($page_id = $this->wire('input')->get($get_var)) {
-            $page = ($page_id == 1) ? $this->wire('page') : $this->wire('pages')->get((int)$page_id);
+            $page = ($page_id == 1) ? $this->wire('page') : $this->wire('pages')->get((int) $page_id);
             if ($page->id && in_array($page->template->name, $this->get('templates'))) {
                 $this->download($page);
             }
@@ -145,6 +145,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
                 return $this->getPDF();
                 break;
         }
+
         return parent::get($key);
     }
 
@@ -162,6 +163,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
                 $this->setPDF($value);
                 break;
         }
+
         return parent::set($key, $value);
     }
 
@@ -174,13 +176,18 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
     public function hookDeletePDF(HookEvent $event)
     {
         $page = $event->arguments[0];
-        $pdf = $this->getPdfFilePath($page);
-        if (is_file($pdf)) {
-            $name = $this->getPdfFileName($page);
-            if (unlink($pdf)) {
-                $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Deleted PDF file '%s'"), $name));
-            } else {
-                $this->wire('session')->error(sprintf($this->_("Pages2Pdf: Failed to delete PDF file '%s'"), $name));
+        if (!in_array($page->template->name, $this->get('templates'))) return;
+
+        // Delete PDF for each language
+        foreach ($this->wire('languages') as $language) {
+            $pdf = $this->getPdfFilePath($page, $language);
+            if (is_file($pdf)) {
+                $name = $this->getPdfFileName($page, $language);
+                if (unlink($pdf)) {
+                    $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Deleted PDF file '%s'"), $name));
+                } else {
+                    $this->wire('session')->error(sprintf($this->_("Pages2Pdf: Failed to delete PDF file '%s'"), $name));
+                }
             }
         }
     }
@@ -194,10 +201,24 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
     public function hookSavePDF(HookEvent $event)
     {
         $page = $event->arguments[0];
-        if (in_array($page->template->name, $this->get('templates'))) {
+        if (!in_array($page->template->name, $this->get('templates'))) return;
+
+        // If multilanguage support is enabled, create a PDF for each language
+        if ($this->get('multilanguageSupport')) {
+            $_language = $this->wire('user')->language;
+            $files = array();
+            foreach ($this->wire('languages') as $language) {
+                $this->wire('user')->language = $language;
+                $this->create($page, true);
+                $files[] = $this->getPDFFilename($page, $language);
+                $this->pdf = null; // This makes sure each language gets a new WirePDF object which is required
+            }
+            $this->wire('user')->language = $_language;
+            $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Created PDF file(s) '%s'"), implode(', ', $files)));
+        } else {
             $this->create($page, true);
             $name = $this->getPDFFilename($page);
-            $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Created PDF file '%s'"), $name));
+            $this->wire('session')->message(sprintf($this->_("Pages2Pdf: Created PDF file(s) '%s'"), $name));
         }
     }
 
@@ -218,14 +239,16 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
             'page_id' => '',
         );
         $options = array_merge($_options, $options);
-        $page = ($options['page_id']) ? $this->wire('pages')->get((int)$options['page_id']) : $this->wire('page');
+        $page = ($options['page_id']) ? $this->wire('pages')->get((int) $options['page_id']) : $this->wire('page');
         if (!in_array($page->template->name, $this->get('templates'))) {
             return ($this->wire('config')->debug) ? $this->_('Pages2Pdf: Template of requested page is not allowed to generate PDFs') : '';
         }
         $out = $options['markup'];
         $get_var = $this->get('getVar');
-        $out = str_replace('{url}', $this->wire('page')->url . "?{$get_var}={$page->id}", $out);
+        $url = $this->wire('page')->url . "?{$get_var}={$page->id}";
+        $out = str_replace('{url}', $url, $out);
         $out = str_replace('{title}', $options['title'], $out);
+
         return $out;
     }
 
@@ -234,11 +257,12 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      * Return path to PDF file
      *
      * @param Page $page
+     * @param Language $language Pass a language object to return the file path for the given language
      * @return string
      */
-    public function getPDFFilePath(Page $page)
+    public function getPDFFilePath(Page $page, Language $language = null)
     {
-        return $page->filesManager()->path() . $this->getPDFFilename($page);
+        return $page->filesManager()->path() . $this->getPDFFilename($page, $language);
     }
 
 
@@ -246,11 +270,12 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      * Return URL to PDF file
      *
      * @param Page $page
+     * @param Language $language Pass a language object to return the file url for the given language
      * @return string
      */
-    public function getPDFFileUrl(Page $page)
+    public function getPDFFileUrl(Page $page, Language $language = null)
     {
-        return $page->filesManager()->url() . $this->getPDFFilename($page);
+        return $page->filesManager()->url() . $this->getPDFFilename($page, $language);
     }
 
 
@@ -262,6 +287,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         if (is_null($this->pdf)) {
             $this->pdf = $this->wire('modules')->get('WirePDF');
         }
+
         return $this->pdf;
     }
 
@@ -281,13 +307,13 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      * @param Page $page
      * @param bool $force True to bypass cached file and create a fresh PDF file before downloading
      */
-    public function download(Page $page, $force=false)
+    public function ___download(Page $page, $force = false)
     {
-        if ($force || !$this->isCached($page)) {
-            $this->getPDF();
-            $this->createPDF($page);
+        $language = $this->determineLanguage();
+        if ($force || !$this->isCached($page, $language)) {
+            $this->createPDF($page, $language);
         }
-        wireSendFile($this->getPDFFilePath($page), array('forceDownload' => true));
+        wireSendFile($this->getPDFFilePath($page, $language), array('forceDownload' => true));
     }
 
 
@@ -297,11 +323,11 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      * @param Page $page
      * @param bool $force True to bypass cache and create a fresh PDF file
      */
-    public function create(Page $page, $force=false)
+    public function ___create(Page $page, $force = false)
     {
-        if ($force || !$this->isCached($page)) {
-            $this->getPDF();
-            $this->createPDF($page);
+        $language = $this->determineLanguage();
+        if ($force || !$this->isCached($page, $language)) {
+            $this->createPDF($page, $language);
         }
     }
 
@@ -384,36 +410,60 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $field->addOptions($modes);
         $fields->append($field);
 
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = __('Multilanguage support');
+        $field->name = 'multilanguageSupport';
+        $field->description = __('If checked, the PDF files are generated per language. If a download is requested, the PDF is delivered in the language of the user, if available.');
+        if ($data['multilanguageSupport']) $field->checked = true;
+        $fields->append($field);
+
         return $fields;
     }
 
 
     /**
-     * Checks if the PDF of given page can be served from cache
+     * Checks if the PDF of given page (and optionally language) can be served from cache
      *
      * @param Page $page
+     * @param Language $language
      * @return bool
+     * @throws WireException
      */
-    protected function isCached(Page $page)
+    protected function isCached(Page $page, Language $language = null)
     {
-        $file = $this->getPDFFilePath($page);
+        $file = $this->getPDFFilePath($page, $language);
         if (!is_file($file) || $this->wire('config')->debug) {
             return false;
         }
         $last_modified = filemtime($file);
+
         return ((time() - $last_modified) < $this->get('cacheTime'));
     }
 
 
     /**
-     * Create PDF file for the given page
-     * This method checks if a template for the page's template is existing in /site/templates/pages2pdf/
+     * Helper method to find out the correct language to create/store/download a PDF file.
+     * If multilanguage support is enabled, the language of the current user is returned, otherwise default.
+     *
+     * @return Language
+     * @throws WireException
+     */
+    protected function determineLanguage()
+    {
+        return ($this->get('multilanguageSupport')) ? $this->wire('user')->language : $this->wire('languages')->get('default');
+    }
+
+
+    /**
+     * Create PDF file for the given page and language, if multilanguage support is enabled.
+     * This method checks if a PDF template for the page's template is existing in /site/templates/pages2pdf/
      * If no template is found, the standard template is used to render the pdf
      *
      * @param Page $page
+     * @param Language $language
      * @throws WireException
      */
-    protected function ___createPDF(Page $page)
+    protected function ___createPDF(Page $page, Language $language = null)
     {
         if (!in_array($page->template->name, $this->get('templates'))) {
             throw new WireException("Pages2Pdf: Not allowed to create PDF file for template '{$page->template->name}'");
@@ -427,35 +477,44 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $templates_path = $this->wire('config')->paths->templates . self::FOLDER_NAME;
         $template_main = $templates_path . $page->template->name . '.php';
         $template_main = (is_file($template_main)) ? $template_main : $templates_path . 'default.php';
-        $this->pdf->set('markupMain', $template_main);
+        $this->getPDF()->set('markupMain', $template_main);
         if ($this->get('printHeader')) {
-            $this->pdf->set('markupHeader', $templates_path . '_header.php');
+            $this->getPDF()->set('markupHeader', $templates_path . '_header.php');
         }
         if ($this->get('printFooter')) {
-            $this->pdf->set('markupFooter', $templates_path . '_footer.php');
+            $this->getPDF()->set('markupFooter', $templates_path . '_footer.php');
         }
         if (is_file($templates_path . 'styles.css')) {
-            $this->pdf->set('cssFile', $templates_path . 'styles.css');
+            $this->getPDF()->set('cssFile', $templates_path . 'styles.css');
         }
         // Temporary set the wire page context to the given page, because $page can be different than wire('page')
         $_page = $this->wire('page');
         $this->wire('page', $page);
-        $this->pdf->save($this->getPDFFilePath($page));
+        $this->getPDF()->save($this->getPDFFilePath($page, $language));
         $this->wire('page', $_page);
     }
 
 
     /**
-     * Get PDF filename of a page
+     * Get PDF filename of a page, may be unique per language
      *
      * @param Page $page
+     * @param Language $language
      * @return string
      */
-    protected function getPDFFilename(Page $page)
+    protected function getPDFFilename(Page $page, Language $language = null)
     {
         $searches = array('{page.id}', '{page.name}');
-        $replaces = array($page->id, $page->name);
-        return str_replace($searches, $replaces, $this->get('filename'));
+        // If the module LanguageSupportPageNames is installed and a language is given, use local page name
+        $name = ($this->wire('modules')->isInstalled('LanguageSupportPageNames')) ? $page->localName($language) : $page->name;
+        $replaces = array($page->id, $name);
+        $filename = str_replace($searches, $replaces, $this->get('filename'));
+        // The filename is only different for languages other than the default one
+        if ($language && $language->name != 'default') {
+            $filename = preg_replace('/\.pdf$/', "-{$language->name}.pdf", $filename);
+        }
+
+        return $filename;
     }
 
 }

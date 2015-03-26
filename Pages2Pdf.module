@@ -201,8 +201,10 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     public function hookSavePDF(HookEvent $event)
     {
+        /** @var Page $page */
         $page = $event->arguments[0];
         if (!in_array($page->template->name, $this->get('templates'))) return;
+        if ($page->is(Page::statusTrash)) return;
 
         // If multilanguage support is enabled and multi-language support is given, create a PDF for each language
         if ($this->get('multilanguageSupport') && $this->wire('languages')) {

@@ -66,7 +66,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 112,
+            'version' => 113,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,
@@ -178,8 +178,9 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $page = $event->arguments[0];
         if (!in_array($page->template->name, $this->get('templates'))) return;
 
-        // Delete PDF for each language
-        foreach ($this->wire('languages') as $language) {
+        // Delete PDF for each language, languages API variable is not available if language support module is not installed
+        $languages = $this->wire('languages') ? $this->wire('languages') : array(null);
+        foreach ($languages as $language) {
             $pdf = $this->getPdfFilePath($page, $language);
             if (is_file($pdf)) {
                 $name = $this->getPdfFileName($page, $language);
@@ -203,8 +204,8 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $page = $event->arguments[0];
         if (!in_array($page->template->name, $this->get('templates'))) return;
 
-        // If multilanguage support is enabled, create a PDF for each language
-        if ($this->get('multilanguageSupport')) {
+        // If multilanguage support is enabled and multi-language support is given, create a PDF for each language
+        if ($this->get('multilanguageSupport') && $this->wire('languages')) {
             $_language = $this->wire('user')->language;
             $files = array();
             foreach ($this->wire('languages') as $language) {
@@ -414,6 +415,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $field->label = __('Multilanguage support');
         $field->name = 'multilanguageSupport';
         $field->description = __('If checked, the PDF files are generated per language. If a download is requested, the PDF is delivered in the language of the user, if available.');
+        $field->notes = __('This feature requires the core module "Languages Support" to be installed');
         if ($data['multilanguageSupport']) $field->checked = true;
         $fields->append($field);
 
@@ -450,7 +452,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
      */
     protected function determineLanguage()
     {
-        return ($this->get('multilanguageSupport')) ? $this->wire('user')->language : $this->wire('languages')->get('default');
+        return ($this->get('multilanguageSupport') && $this->wire('languages')) ? $this->wire('user')->language : null;
     }
 
 

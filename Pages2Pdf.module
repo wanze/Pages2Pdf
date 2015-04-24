@@ -6,7 +6,7 @@
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
  * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
- * @version 1.1.3
+ * @version 1.1.4
  *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
@@ -66,7 +66,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 113,
+            'version' => 114,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,

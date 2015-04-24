@@ -95,7 +95,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         $get_var = $this->get('getVar');
         if ($page_id = $this->wire('input')->get($get_var)) {
             $page = ($page_id == 1) ? $this->wire('page') : $this->wire('pages')->get((int) $page_id);
-            if ($page->id && in_array($page->template->name, $this->get('templates'))) {
+            if ($page->id && in_array($page->template->name, $this->get('templates')) && $page->viewable()) {
                 $this->download($page);
             }
         }

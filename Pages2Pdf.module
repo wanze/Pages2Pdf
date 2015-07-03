@@ -6,7 +6,7 @@
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
  * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
- * @version 1.1.4
+ * @version 1.1.5
  *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
@@ -66,7 +66,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 114,
+            'version' => 115,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,
@@ -500,7 +500,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
 
 
     /**
-     * Get PDF filename of a page, may be unique per language
+     * Get PDF filename of a page, must be unique per language
      *
      * @param Page $page
      * @param Language $language
@@ -509,8 +509,11 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
     protected function getPDFFilename(Page $page, Language $language = null)
     {
         $searches = array('{page.id}', '{page.name}');
+        $name = $page->name;
         // If the module LanguageSupportPageNames is installed and a language is given, use local page name
-        $name = ($this->wire('modules')->isInstalled('LanguageSupportPageNames')) ? $page->localName($language) : $page->name;
+        if ($this->wire('modules')->isInstalled('LanguageSupportPageNames') && $page->localName($language)) {
+            $name = $page->localName($language);
+        }
         $replaces = array($page->id, $name);
         $filename = str_replace($searches, $replaces, $this->get('filename'));
         // The filename is only different for languages other than the default one

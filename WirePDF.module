@@ -51,7 +51,6 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         foreach (self::$config as $k => $v) {
             $this->set($k, $v);
         }
-        $this->setTrackChanges(true);
     }
 
 
@@ -88,8 +87,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         switch ($key) {
             case 'pdf':
             case 'mpdf':
-                return $this->pdf;
-                break;
+                return $this->initPDF();
         }
 
         return parent::get($key);
@@ -148,33 +146,49 @@ class WirePDF extends WireData implements Module, ConfigurableModule
 
 
     /**
+     * Act as a proxy object for mPDF, which allows to call methods on a mPDF instance directly.
+     *
+     * @param string $method
+     * @param array $args
+     * @return mixed
+     */
+    public function __call($method, $args)
+    {
+        $hookable = array('initPDF'); // Skip local hooks
+        if (!in_array($method, $hookable) && method_exists($method, $this->initPDF())) {
+            return call_user_func_array(array($this->pdf, $method), $args);
+        }
+
+        return parent::__call($method, $args);
+    }
+
+
+    /**
      * Setup mPDF
-     * Due to the big memory consumption of mPDF, the mPDF object is only created if it's null or there were
-     * changes to the constructor arguments (it could be the case that an instance of this class is used to save
-     * multiple PDFs, for example inside a loop)
      *
      * @throws WireException
      * @return mPDF
      */
     protected function ___initPDF()
     {
-        if (is_null($this->pdf) || $this->changedConstructorArgs()) {
-            $this->pdf = new mPDF(
-                $this->get('mode'),
-                $this->get('pageFormat'),
-                $this->get('fontSize'),
-                $this->get('font'),
-                $this->get('leftMargin'),
-                $this->get('rightMargin'),
-                $this->get('topMargin'),
-                $this->get('bottomMargin'),
-                $this->get('headerMargin'),
-                $this->get('footerMargin'),
-                $this->get('pageOrientation')
-            );
-            // Need to pass orientation again, constructor of mPDF does reset landscape to portrait -.-
-            $this->pdf->AddPage($this->get('pageOrientation'));
+        if ($this->pdf !== null) {
+            return $this->pdf;
         }
+        $this->pdf = new mPDF(
+            $this->get('mode'),
+            $this->get('pageFormat'),
+            $this->get('fontSize'),
+            $this->get('font'),
+            $this->get('leftMargin'),
+            $this->get('rightMargin'),
+            $this->get('topMargin'),
+            $this->get('bottomMargin'),
+            $this->get('headerMargin'),
+            $this->get('footerMargin'),
+            $this->get('pageOrientation')
+        );
+        // Need to pass orientation again, constructor of mPDF does reset landscape to portrait -.-
+        $this->pdf->AddPage($this->get('pageOrientation'));
         $this->pdf->SetAuthor($this->get('author'));
         if ($markup = $this->getMarkup('markupHeader')) {
             $this->pdf->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
@@ -191,39 +205,6 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         }
 
         return $this->pdf;
-    }
-
-
-    /**
-     * Check if arguments passed to mPDF constructor were changed, reset trackChanging after check.
-     *
-     * @return bool
-     */
-    protected function changedConstructorArgs()
-    {
-        $args = array(
-            'mode',
-            'pageFormat',
-            'fontSize',
-            'font',
-            'leftMargin',
-            'rightMargin',
-            'topMargin',
-            'bottomMargin',
-            'headerMargin',
-            'footerMargin',
-            'pageOrientation'
-        );
-        $return = false;
-        foreach ($args as $arg) {
-            if ($this->isChanged($arg)) {
-                $return = true;
-                break;
-            }
-        }
-        $this->resetTrackChanges();
-
-        return $return;
     }
 
 

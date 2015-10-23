@@ -8,7 +8,7 @@
  * @see http://www.mpdf1.com/mpdf/index.php
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
- * @version 1.0.2
+ * @version 1.0.3
  *
  */
 class WirePDF extends WireData implements Module, ConfigurableModule
@@ -63,7 +63,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'WirePDF',
             'summary' => __('Wrapper class around the library mPDF to create PDF files, optimized for ProcessWire'),
-            'version' => 102,
+            'version' => 103,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
         );
@@ -187,7 +187,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
             $this->pdf->WriteHTML($css, 1);
             $this->pdf->WriteHTML($this->getMarkup(), 2);
         } else {
-            $this->pdf->writeHTML($this->getMarkup());
+            $this->pdf->WriteHTML($this->getMarkup());
         }
 
         return $this->pdf;
@@ -237,6 +237,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     protected function getMarkup($section = 'markupMain')
     {
         $markup = $this->get($section);
+        $return = '';
         if ($markup instanceof TemplateFile) {
             $return = $markup->render();
         } elseif (is_file($markup)) {
@@ -244,8 +245,6 @@ class WirePDF extends WireData implements Module, ConfigurableModule
             $return = $template_file->render();
         } elseif (is_string($markup)) {
             $return = $markup;
-        } else {
-            $return = '';
         }
 
         return $return;

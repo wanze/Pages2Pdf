@@ -104,14 +104,19 @@ $template = new TemplateFile($config->paths->templates . 'pdf_template.php');
 $pdf->markupMain = $template->render();
 ```
 
-For advanced usage, you can also get the mPDF instance from the module:
+For advanced usage, you can also get the mPDF instance from the module and modify the object further:
 
 ```php
 $pdf = $modules->get('WirePDF');
 
 // Get mPDF instance
 $mpdf = $pdf->mpdf;
-
-// Set back mPDF instance
-$pdf->mpdf = $mpdf;
 ```
+Since version `1.0.3` of WirePDF, you can also call mPDF methods directly on a WirePDF instance:
+```php
+$pdf = $modules->get('WirePDF');
+$pdf->markupMain = 'Hello World';
+$pdf->author = 'John Doe';
+$pdf->SetKeywords('ProcessWire, PDF'); // SetKeywords is internally called on the mPDF instance
+```
+

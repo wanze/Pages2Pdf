@@ -115,5 +115,8 @@ $mpdf = $pdf->mpdf;
 Since version `1.0.3` of WirePDF, you can also call mPDF methods directly on a WirePDF instance:
 ```php
 $pdf = $modules->get('WirePDF');
+$pdf->markupMain = 'Hello World';
+$pdf->author = 'John Doe';
 $pdf->SetKeywords('ProcessWire, PDF'); // SetKeywords is internally called on the mPDF instance
 ```
+

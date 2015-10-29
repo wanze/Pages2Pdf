@@ -87,7 +87,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         switch ($key) {
             case 'pdf':
             case 'mpdf':
-                return $this->initPDF();
+                return $this->mPDF();
         }
 
         return parent::get($key);
@@ -125,8 +125,8 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      */
     public function download($filename, $mode = 'I')
     {
-        $this->initPDF();
-        $this->pdf->Output($filename, $mode);
+        $this->writePDF();
+        $this->mPDF()->Output($filename, $mode);
     }
 
 
@@ -138,8 +138,8 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      */
     public function save($filepath)
     {
-        $this->initPDF();
-        $this->pdf->Output($filepath, 'F');
+        $this->writePDF();
+        $this->mPDF()->Output($filepath, 'F');
 
         return $this;
     }
@@ -155,11 +155,46 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     public function __call($method, $args)
     {
         $hookable = array('initPDF'); // Skip local hooks
-        if (!in_array($method, $hookable) && method_exists($method, $this->initPDF())) {
-            return call_user_func_array(array($this->pdf, $method), $args);
+        if (!in_array($method, $hookable) && method_exists($this->mPDF(), $method)) {
+            return call_user_func_array(array($this->mPDF(), $method), $args);
         }
 
         return parent::__call($method, $args);
+    }
+
+
+    /**
+     * Write current data to mPDF instance
+     */
+    protected function ___writePDF()
+    {
+        $this->mPDF()->SetAuthor($this->get('author'));
+        if ($markup = $this->getMarkup('markupHeader')) {
+            $this->mPDF()->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
+        }
+        if ($markup = $this->getMarkup('markupFooter')) {
+            $this->mPDF()->SetHTMLFooter($markup);
+        }
+        $css = (is_file($this->get('cssFile'))) ? file_get_contents($this->get('cssFile')) : $this->get('css');
+        if ($css) {
+            $this->mPDF()->WriteHTML($css, 1);
+            $this->mPDF()->WriteHTML($this->getMarkup(), 2);
+        } else {
+            $this->mPDF()->WriteHTML($this->getMarkup());
+        }
+    }
+
+
+    /**
+     * @return mPDF
+     */
+    protected function mPDF()
+    {
+        if ($this->pdf !== null) {
+            return $this->pdf;
+        }
+
+        return $this->initPDF();
     }
 
 
@@ -171,9 +206,6 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      */
     protected function ___initPDF()
     {
-        if ($this->pdf !== null) {
-            return $this->pdf;
-        }
         $this->pdf = new mPDF(
             $this->get('mode'),
             $this->get('pageFormat'),
@@ -189,20 +221,6 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         );
         // Need to pass orientation again, constructor of mPDF does reset landscape to portrait -.-
         $this->pdf->AddPage($this->get('pageOrientation'));
-        $this->pdf->SetAuthor($this->get('author'));
-        if ($markup = $this->getMarkup('markupHeader')) {
-            $this->pdf->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
-        }
-        if ($markup = $this->getMarkup('markupFooter')) {
-            $this->pdf->SetHTMLFooter($markup);
-        }
-        $css = (is_file($this->get('cssFile'))) ? file_get_contents($this->get('cssFile')) : $this->get('css');
-        if ($css) {
-            $this->pdf->WriteHTML($css, 1);
-            $this->pdf->WriteHTML($this->getMarkup(), 2);
-        } else {
-            $this->pdf->WriteHTML($this->getMarkup());
-        }
 
         return $this->pdf;
     }

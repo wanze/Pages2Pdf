@@ -8,8 +8,7 @@
  * @see http://www.mpdf1.com/mpdf/index.php
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
- * @version 1.0.3
- *
+ * @version 1.0.4
  */
 class WirePDF extends WireData implements Module, ConfigurableModule
 {
@@ -62,7 +61,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'WirePDF',
             'summary' => __('Wrapper class around the library mPDF to create PDF files, optimized for ProcessWire'),
-            'version' => 103,
+            'version' => 104,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
         );

@@ -2,17 +2,10 @@
 
 /**
  * Pages2Pdf
- * Module helping creating PDF files from ProcessWire pages.
  *
  * @author Stefan Wanzenried <stefan.wanzenried@gmail.com>
  * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
- * @version 1.1.6
- *
- * ProcessWire 2.x
- * Copyright (C) 2011 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * <http://www.processwire.com>
- *
+ * @version 1.1.7
  */
 class Pages2Pdf extends WireData implements Module, ConfigurableModule
 {
@@ -66,7 +59,7 @@ class Pages2Pdf extends WireData implements Module, ConfigurableModule
         return array(
             'title' => 'Pages2Pdf',
             'summary' => __('Generates PDF files of pages. The HTML markup of the PDFs is customizable with ProcessWire templates.'),
-            'version' => 116,
+            'version' => 117,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
             'singular' => true,

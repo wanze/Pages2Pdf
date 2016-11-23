@@ -1,5 +1,5 @@
 <?php
-
+// FileCompiler=0
 // ******************************************************************************
 // Software: mPDF, Unicode-HTML Free PDF generator                              *
 // Version:  6.1        based on                                                *

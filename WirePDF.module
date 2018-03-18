@@ -27,7 +27,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     protected static $config = array(
         'markupMain' => '',
         'markupHeader' => '',
+        'markupHeaderEven' => '',
         'markupFooter' => '',
+        'markupFooterEven' => '',
         'mode' => 'c',
         'pageOrientation' => 'P',
         'pageFormat' => 'A4',
@@ -174,10 +176,20 @@ class WirePDF extends WireData implements Module, ConfigurableModule
             $this->mPDF()->mirrorMargins = $this->get('mirrorMargins');
         }
         if ($markup = $this->getMarkup('markupHeader')) {
-            $this->mPDF()->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
+            $this->mPDF()->DefHTMLHeaderByName('headerOdd', $markup);
+            $this->mPDF()->SetHTMLHeaderByName('headerOdd', 'O', (bool) $this->get('headerFirstPage'));
+        }
+        if ($markup = $this->getMarkup('markupHeaderEven')) {
+            $this->mPDF()->DefHTMLHeaderByName('headerEven', $markup);
+            $this->mPDF()->SetHTMLHeaderByName('headerEven', 'E');
         }
         if ($markup = $this->getMarkup('markupFooter')) {
-            $this->mPDF()->SetHTMLFooter($markup);
+            $this->mPDF()->DefHTMLFooterByName('footerOdd', $markup);
+            $this->mPDF()->SetHTMLFooterByName('footerOdd', 'O');
+        }
+        if ($markup = $this->getMarkup('markupFooterEven')) {
+            $this->mPDF()->DefHTMLFooterByName('footerEven', $markup);
+            $this->mPDF()->SetHTMLFooterByName('footerEven', 'E');
         }
         $css = (is_file($this->get('cssFile'))) ? file_get_contents($this->get('cssFile')) : $this->get('css');
         if ($css) {
@@ -311,8 +323,8 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         $fields->append($field);
 
         $field = $modules->get('InputfieldCheckbox');
-        $field->label = __('Mirror margins');
-        $field->description = __('If checked, the document will mirror the left and right margin values on odd and even pages i.e. they become inner and outer margins.');
+        $field->label = __('Mirror margins and use odd/even headers and footers');
+        $field->description = __('If checked, the document will mirror the left and right margin values on odd and even pages i.e. they become inner and outer margins. It will also use the odd/even templates for header and footer.');
         $field->name = 'mirrorMargins';
         $field->value = $data['mirrorMargins'];
         if ($data['mirrorMargins']) $field->checked = 'checked';

@@ -37,6 +37,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         'leftMargin' => 15,
         'headerMargin' => 5,
         'footerMargin' => 10,
+        'mirrorMargins' => 0,
         'font' => 'Helvetica',
         'fontSize' => 12,
         'author' => '',
@@ -169,6 +170,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
     protected function ___writePDF()
     {
         $this->mPDF()->SetAuthor($this->get('author'));
+        if ($this->get('mirrorMargins')) {
+            $this->mPDF()->mirrorMargins = $this->get('mirrorMargins');
+        }
         if ($markup = $this->getMarkup('markupHeader')) {
             $this->mPDF()->SetHTMLHeader($markup, '', (bool) $this->get('headerFirstPage'));
         }
@@ -304,6 +308,14 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         $field->name = 'footerMargin';
         $field->value = $data['footerMargin'];
         $field->columnWidth = 50;
+        $fields->append($field);
+
+        $field = $modules->get('InputfieldCheckbox');
+        $field->label = __('Mirror margins');
+        $field->description = __('If checked, the document will mirror the left and right margin values on odd and even pages i.e. they become inner and outer margins.');
+        $field->name = 'mirrorMargins';
+        $field->value = $data['mirrorMargins'];
+        if ($data['mirrorMargins']) $field->checked = 'checked';
         $fields->append($field);
 
         $field = $modules->get('InputfieldCheckbox');

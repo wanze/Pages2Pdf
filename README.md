@@ -1,14 +1,14 @@
-#Pages2Pdf
+# Pages2Pdf
 Module for ProcessWire that helps generating dynamic PDF files from pages with the library [mPDF](http://www.mpdf1.com/mpdf/index.php).
 The PDF output is customizable with ProcessWire templates.
 
-##Installation
+## Installation
 Please take a look at the following guide: http://modules.processwire.com/install-uninstall/
 
-###Important: Update to v.1.1.0+
+### Important: Update to v.1.1.0+
 Version 1.1.0 was a major refactoring of the module. The PDF engine was switched from TCPDF to mPDF, which has superior support for rendering HTML/CSS. Furthermore, creating the PDF files was delegated to a separate module called *WirePDF*. Some settings related to the configuration of the PDF layout (margins, page format...) were moved to this module. Before you update, please check out the [instructions here](https://processwire.com/talk/topic/3008-module-pages2pdf/?p=67797) and make sure that you test the rendering of the PDF files.
 
-##Configuration
+## Configuration
 After installing the module, the following config options are available:
 
 * **Enabled templates** Select the templates where the module is allowed to create/store PDF files
@@ -22,7 +22,7 @@ After installing the module, the following config options are available:
 
 More configuration options related to the layout of the PDF are available in the module *WirePDF*.
 
-##Using the module
+## Using the module
 The goal of this module is to support you creating/downloading PDF files for certain templates. After the installation, you should find a new folder "pages2pdf" in your "/site/templates/" directory. This folder contains the (ProcessWire) templates where you define the markup of the PDF files:
 
 * `default.php` Default markup if no template corresponding to the page's template is found
@@ -54,7 +54,7 @@ echo '<a href="' . $page->url . '?pages2pdf=' . $pages->get('/my/page/')->id . '
 
 Depending on the chosen creation mode in the module configuration, the PDF file is cached before downloading or after saving a page. When the user requests a download of a PDF, the file is only re-created if the cache is expired or if debug mode is on.
 
-#WirePDF
+# WirePDF
 This module is a wrapper around the mPDF library. It is used by the Pages2Pdf module to create and store the PDF files, but can also be used independently to create/store/download PDF files.
 
 ## Configuration
@@ -71,7 +71,7 @@ The most important configuration options for mPDF are available in the module co
 * **CSS file** Path and filename of a CSS file containing default styles for the PDF HTML markup
 * **Author** Author of the PDF
 
-##Using the module
+## Using the module
 Here are some examples how you can create and store/download a PDF file:
 ```php
 $pdf = $modules->get('WirePDF');

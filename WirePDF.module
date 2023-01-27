@@ -1,5 +1,7 @@
 <?php
 
+namespace ProcessWire;
+
 /**
  * Module WirePDF
  *
@@ -64,6 +66,9 @@ class WirePDF extends WireData implements Module, ConfigurableModule
             'version' => 104,
             'author' => 'Stefan Wanzenried (Wanze)',
             'href' => 'http://processwire.com/talk/topic/3008-module-pages2pdf/',
+            'requires' => [
+                'PHP>=8.0'
+            ]
         );
     }
 
@@ -73,7 +78,7 @@ class WirePDF extends WireData implements Module, ConfigurableModule
         // Set the cache path of mPDF to /site/assets/cache
         define('_MPDF_TEMP_PATH', $this->wire('config')->paths->cache . 'WirePDF/');
         define('_MPDF_TTFONTDATAPATH', $this->wire('config')->paths->cache . 'WirePDF/');
-        require_once(dirname(__FILE__) . '/mpdf/mpdf.php');
+        require_once(__DIR__ . '/vendor/autoload.php');
     }
 
 
@@ -201,23 +206,25 @@ class WirePDF extends WireData implements Module, ConfigurableModule
      * Setup mPDF
      *
      * @throws WireException
-     * @return mPDF
+     * @return \Mpdf\Mpdf
      */
     protected function ___initPDF()
     {
-        $this->pdf = new mPDF(
-            $this->get('mode'),
-            $this->get('pageFormat'),
-            $this->get('fontSize'),
-            $this->get('font'),
-            $this->get('leftMargin'),
-            $this->get('rightMargin'),
-            $this->get('topMargin'),
-            $this->get('bottomMargin'),
-            $this->get('headerMargin'),
-            $this->get('footerMargin'),
-            $this->get('pageOrientation')
-        );
+        $this->pdf = new \Mpdf\Mpdf([
+
+            'mode' => $this->get("mode"),
+            'format' => $this->get('pageFormat'),
+            'default_font_size' => $this->get('fontSize'),
+            'font' => $this->get('font'),
+            'margin_left' => $this->get('leftMargin'),
+            'margin_right' => $this->get('rightMargin'),
+            'margin_top' => $this->get('topMargin'),
+            'margin_bottom' => $this->get('bottomMargin'),
+            'margin_header' => $this->get('headerMargin'),
+            'margin_footer' => $this->get('footerMargin'),
+            'orientation' => $this->get('pageOrientation')
+        ]);
+
         // Need to pass orientation again, constructor of mPDF does reset landscape to portrait -.-
         $this->pdf->AddPage($this->get('pageOrientation'));
 
